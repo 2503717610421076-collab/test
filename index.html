@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eco Smart | Advanced Environmental Monitor</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+:root{
+--primary:#0ea5e9;
+--success:#10b981;
+--warning:#f59e0b;
+--danger:#ef4444;
+--dark:#020617;
+--glass:rgba(255,255,255,0.05);
+--border:rgba(255,255,255,0.1);
+--text:#f8fafc;
+--dim:#94a3b8;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;font-family:Poppins,sans-serif;}
+
+body{
+background:var(--dark);
+color:var(--text);
+padding-top:100px;
+}
+
+nav{
+position:fixed;
+top:0;width:100%;
+padding:20px 5%;
+display:flex;
+justify-content:space-between;
+background:rgba(2,6,23,0.8);
+border-bottom:1px solid var(--border);
+z-index:1000;
+}
+
+section{padding:60px 5%;}
+
+.card{
+background:var(--glass);
+border:1px solid var(--border);
+border-radius:20px;
+padding:25px;
+margin-bottom:20px;
+transition:0.3s;
+}
+
+.danger-glow{
+box-shadow:0 0 20px rgba(239,68,68,0.7);
+border-color:var(--danger);
+}
+
+.status-pill{
+padding:6px 14px;
+border-radius:8px;
+font-size:0.75rem;
+font-weight:600;
+display:inline-block;
+margin-top:10px;
+}
+
+input{
+padding:6px;
+margin-bottom:10px;
+border-radius:6px;
+border:none;
+width:120px;
+}
+
+button{
+padding:8px 16px;
+border:none;
+border-radius:8px;
+background:var(--primary);
+color:white;
+cursor:pointer;
+}
+
+#alert-banner{
+display:none;
+position:fixed;
+top:70px;
+width:100%;
+background:var(--danger);
+text-align:center;
+padding:12px;
+font-weight:600;
+z-index:999;
+}
+</style>
+</head>
+
+<body>
+
+<nav>
+<div style="font-weight:700;">EcoSmart.io</div>
+<div style="color:var(--success);">● System Online</div>
+</nav>
+
+<div id="alert-banner">⚠ Unsafe Gas Level Detected!</div>
+
+<section>
+<h2>Live Monitoring Dashboard</h2>
+<p id="overall-status">Overall Status: SAFE</p>
+<p id="last-updated" style="color:var(--dim);margin-bottom:20px;">Last Updated: --</p>
+
+<div class="card" id="co-card">
+<h3>CO Level</h3>
+<h2 id="co-value">-- ppm</h2>
+<span id="co-status" class="status-pill"></span>
+<canvas id="coChart" height="80"></canvas>
+</div>
+
+<div class="card" id="co2-card">
+<h3>CO2 Level</h3>
+<h2 id="co2-value">-- ppm</h2>
+<span id="co2-status" class="status-pill"></span>
+</div>
+
+<div class="card" id="smoke-card">
+<h3>Smoke Level</h3>
+<h2 id="smoke-value">-- ppm</h2>
+<span id="smoke-status" class="status-pill"></span>
+</div>
+
+<div class="card">
+<h3>Temperature</h3>
+<h2 id="temp-value">-- °C</h2>
+</div>
+
+<div class="card">
+<h3>Humidity</h3>
+<h2 id="hum-value">-- %</h2>
+</div>
+
+</section>
+
+<section>
+<h3>Set Threshold Limits</h3>
+CO Limit: <input type="number" id="co-limit" value="9"><br>
+CO2 Limit: <input type="number" id="co2-limit" value="1000"><br>
+Smoke Limit: <input type="number" id="smoke-limit" value="300"><br>
+<button onclick="updateLimits()">Save Limits</button>
+</section>
+
+<section>
+<h3>⚠ Alert History</h3>
+<ul id="alert-history" style="list-style:none;margin-top:15px;"></ul>
+</section>
+
+<script>
+let coLimit=9;
+let co2Limit=1000;
+let smokeLimit=300;
+let alertHistory=[];
+
+const ctx=document.getElementById('coChart').getContext('2d');
+const coChart=new Chart(ctx,{
+type:'line',
+data:{labels:[],datasets:[{
+data:[],
+borderColor:'#ef4444',
+tension:0.4
+}]},
+options:{
+plugins:{legend:{display:false}},
+scales:{x:{display:false},y:{display:false}}
+}
+});
+
+function updateLimits(){
+coLimit=parseInt(document.getElementById("co-limit").value);
+co2Limit=parseInt(document.getElementById("co2-limit").value);
+smokeLimit=parseInt(document.getElementById("smoke-limit").value);
+}
+
+function addAlert(message){
+const time=new Date().toLocaleTimeString();
+alertHistory.unshift(time+" - "+message);
+document.getElementById("alert-history").innerHTML=
+alertHistory.slice(0,5).map(a=>`<li>${a}</li>`).join('');
+}
+
+function updateDashboard(){
+
+const co=(Math.random()*15).toFixed(1);
+const co2=(Math.random()*1200).toFixed(0);
+const smoke=(Math.random()*400).toFixed(0);
+const temp=(Math.random()*5+22).toFixed(1);
+const hum=(Math.random()*20+40).toFixed(0);
+
+document.getElementById("co-value").innerText=co+" ppm";
+document.getElementById("co2-value").innerText=co2+" ppm";
+document.getElementById("smoke-value").innerText=smoke+" ppm";
+document.getElementById("temp-value").innerText=temp+" °C";
+document.getElementById("hum-value").innerText=hum+" %";
+document.getElementById("last-updated").innerText=
+"Last Updated: "+new Date().toLocaleTimeString();
+
+let overallDanger=false;
+
+checkGas(co,coLimit,"co");
+checkGas(co2,co2Limit,"co2");
+checkGas(smoke,smokeLimit,"smoke");
+
+function checkGas(value,limit,id){
+const card=document.getElementById(id+"-card");
+const status=document.getElementById(id+"-status");
+
+if(value>limit){
+card.classList.add("danger-glow");
+status.innerText="DANGER";
+status.style.background="var(--danger)";
+overallDanger=true;
+addAlert(id.toUpperCase()+" exceeded limit!");
+}else{
+card.classList.remove("danger-glow");
+status.innerText="SAFE";
+status.style.background="var(--success)";
+}
+}
+
+if(overallDanger){
+document.getElementById("alert-banner").style.display="block";
+document.getElementById("overall-status").innerText=
+"Overall Status: ⚠ Attention Required";
+}else{
+document.getElementById("alert-banner").style.display="none";
+document.getElementById("overall-status").innerText=
+"Overall Status: SAFE";
+}
+
+coChart.data.labels.push('');
+coChart.data.datasets[0].data.push(co);
+if(coChart.data.labels.length>10){
+coChart.data.labels.shift();
+coChart.data.datasets[0].data.shift();
+}
+coChart.update();
+}
+
+updateDashboard();
+setInterval(updateDashboard,5000);
+</script>
+
+</body>
+</html>
